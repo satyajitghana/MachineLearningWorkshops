@@ -37,12 +37,45 @@ def batch_convert(folder='./', outfolder='./CSV/', sheet_index=0, row_start=0, r
     
     Example Usage : batch_convert('./XLSX', row_start=3, row_end=35)
     """
-    import glob, os
+    import glob, os, time
+    start = time.time()
+    
     files = glob.glob(folder+'/*.xlsx')
     if not os.path.exists(outfolder):
         os.makedirs(outfolder)
     outfilenames = [ outfolder + fname.replace(' ', '_') + '.csv' for fname in [os.path.splitext(os.path.basename(f))[0] for f in files] ]
     for (infile, outfile) in zip(files, outfilenames):
         xlsx_to_csv(xlsx_file=infile, outfile=outfile, sheet_index=sheet_index, row_start=row_start, row_end=row_end)
+        
+    end = time.time()
     
-    print('DONE ! Processed {} files'.format(len(files)))
+    print('DONE ! Processed {} files in {} seconds \nOutput Directory : {}'.format(len(files), end-start, os.path.abspath(outfolder)))
+    
+def clean_niti_data(csv_folder='./', outfolder='./PROCESSED/'):
+    """
+    Provide the CSV folder and this method will replace the missing values with NaN
+    and the colnames will be cleaned
+    
+    Usage : clean_niti_data('./CSV/')
+    """
+    import re, functools, itertools, glob, os, time
+    import pandas as pd
+    
+    start = time.time()
+    
+    files = glob.glob(csv_folder+'*.csv')
+    
+    if not os.path.exists(outfolder):
+        os.makedirs(outfolder)
+    
+    for file in files:
+        data = pd.read_csv(file)
+        data.iloc[:, 1:] = data.iloc[:, 1:].apply( functools.partial(pd.to_numeric, errors='coerce'))
+        newidx = [re.sub('[^0-9\-]+', '', colname) for colname in data.columns[1:]]
+        newidx.insert(0, 'State')
+        data.columns = pd.Index(newidx)
+        data.to_csv(outfolder+os.path.splitext(os.path.basename(file))[0]+'.csv', index=False)
+    
+    end = time.time()
+    
+    print('Processed {} files in {} seconds'.format(len(files), end-start))
